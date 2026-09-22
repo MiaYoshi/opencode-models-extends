@@ -72,6 +72,9 @@ export function applyModelPartial(draft: ModelDraft, partial: Dict): void {
   }
 
   if (Array.isArray(partial.cost)) draft.cost = partial.cost.map((x) => (isPlainObject(x) ? { ...x } : x))
+  // v2.0.14 实测:OpenCode 在 transform 之后按「配置条目 variants ?? 包启发式自动装配」重建最终
+  // variants,draft.variants 被忽略(见 ADR-0007)。这里仍写入,是为未来版本若改读 draft 时前向兼容;
+  // 当前版本生效与否由 dataset.ts 构建期的警告负责告知用户。
   if (Array.isArray(partial.variants)) {
     draft.variants = (mergeVariants(draft.variants, partial.variants) ?? []) as Array<Dict & { id: string }>
   }

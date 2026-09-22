@@ -32,10 +32,6 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
     "limit": { "context": 262144, "output": 64000 },
     "modalities": { "input": ["text", "image"], "output": ["text"] },
     "tool_call": true,
-    "variants": {
-      "low": { "reasoningEffort": "low" },
-      "xhigh": { "reasoningEffort": "xhigh" },
-    },
   },
   // V2 风格 + 链式继承(ADR-0004)
   "qwen-common": { "settings": { "setCacheKey": true } },
@@ -46,6 +42,8 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
   },
 }
 ```
+
+> ⚠️ **variants 不要放进模板**:OpenCode v2 在插件 transform 之后按「配置条目原始 variants ?? 包与模型名自动装配」重建 variants,插件注入的一律被忽略(ADR-0007)。把 variants 留在各模型配置条目里;若模板里写了 variants,插件会警告并提示。
 
 ### 2. 在 opencode 配置里引用(锚点)
 
@@ -85,7 +83,8 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
 |---|---|
 | 查找链(低→高) | 全局 `~/.config/opencode/extends.models.json(c)` → 从文件系统根到启动目录逐级 `extends.models.json(c)` → 各级 `.opencode/` 下的同名文件 |
 | 同 id 合并 | 就近文件的条目深合并覆盖远端;用户配置最终覆盖模板 |
-| 合并规则 | `settings`/`body`/`compatibility` 递归合并;`headers` 按 key(大小写不敏感)覆盖;`limit`/`capabilities` 逐子键;`variants` 按 id 对齐;数组与标量整值替换 |
+| 合并规则 | `settings`/`body`/`compatibility` 递归合并;`headers` 按 key(大小写不敏感)覆盖;`limit`/`capabilities` 逐子键;数组与标量整值替换 |
+| **`variants` 不生效**(v2.0.14) | 模板里的 `variants` 合并逻辑保留、也会写进 draft,但 OpenCode 在 transform 之后按「配置条目原始 `variants` ?? 按包与模型名自动装配」重建,**插件注入的 variants 被整体丢弃**。→ 请把 `variants` 写在各模型的配置条目里;模板若含 `variants` 会触发一条警告。详见 ADR-0007 |
 | 删除模板键 | 用户侧写显式 `null`(ADR-0003)。⚠️ 只可靠用于 **V2 `settings`**:V1 `options` 里写 `null` 会让 OpenCode 把整个 provider 判为非法直接跳过(官方解码行为) |
 | 凭据 | 模板可用 `{env:VAR}` / `{env:VAR:-默认值}`;变量未设且无默认 → 警告并删除该键(ADR-0005) |
 | 链式 extends | 模板条目顶层 `extends`;每跳按查找链就近解析;成环/断链 → 警告并停止展开(ADR-0004) |

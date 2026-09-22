@@ -118,6 +118,36 @@ test("链式 extends:子条目覆写父条目", () => {
   }
 })
 
+test("模板提供 variants:警告会被 OpenCode 忽略(v2.0.14 装配),partial 仍写入以前向兼容", () => {
+  const { root, cleanup } = fixture({
+    "global/extends.models.jsonc": JSON.stringify({
+      base: { variants: { high: { reasoningEffort: "high" } } },
+      child: { extends: "base", limit: { context: 10 } },
+      plain: { limit: { context: 20 } },
+    }),
+    "project/opencode.jsonc": JSON.stringify({
+      providers: {
+        p: {
+          models: {
+            inherited: { settings: { extends: "child" } },
+            quiet: { settings: { extends: "plain" } },
+          },
+        },
+      },
+    }),
+  })
+  try {
+    const { dataset, warnings } = run(root)
+    const vWarns = warnings.filter((w) => w.includes("variants 会被 OpenCode 忽略"))
+    assert.equal(vWarns.length, 1) // 仅链上有 variants 的锚点告警
+    assert.match(vWarns[0]!, /"inherited"/)
+    const inh = dataset.anchors.find((a) => a.modelID === "inherited")!
+    assert.deepEqual((inh.partial as { variants?: unknown[] }).variants, [{ id: "high", settings: { reasoningEffort: "high" } }])
+  } finally {
+    cleanup()
+  }
+})
+
 test("断链:警告且只保留用户配置", () => {
   const { root, cleanup } = fixture({
     "project/opencode.jsonc": JSON.stringify({

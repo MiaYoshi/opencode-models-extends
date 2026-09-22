@@ -198,6 +198,12 @@ export function buildDataset(locationDir: string, warn: Warn, opts: DatasetOptio
     const label = `provider "${providerID}" model "${modelID}"`
     const userNorm = normalizeModelEntry(raw, label, "anchor", warn)
     const templateResolved = extendsId ? resolveChain(extendsId, templates, [], (m) => warn(`${label}: ${m}`)) : undefined
+    // v2.0.14 实测:OpenCode 对 variants 的最终装配 = 配置条目原始 variants ?? 按包与模型名的自动装配,
+    // 完全忽略 transform 写入的 draft.variants → 模板提供的 variants 不会生效(见 ADR-0007)。
+    // 仍会写入 draft(前向兼容),但必须警告,避免用户误以为已注入。
+    if (Array.isArray(templateResolved?.variants) && templateResolved.variants.length > 0) {
+      warn(`${label}: 模板提供的 variants 会被 OpenCode 忽略(v2.0.14 装配规则),请将 variants 写在模型配置条目里`)
+    }
     const merged = templateResolved && userNorm ? mergeModelPartial(templateResolved, userNorm.partial) : (userNorm?.partial ?? {})
     const final = substituteEnv(merged, (m) => warn(`${label}: ${m}`))
     const partial: Dict = isPlainObject(final) ? final : {}
