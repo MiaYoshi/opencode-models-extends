@@ -1,0 +1,111 @@
+# opencode-models-extends
+
+OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重复的模型参数配置。
+
+设计决策见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)(0001–0006)。
+
+## 安装
+
+在**全局**配置 `~/.config/opencode/opencode.jsonc`(Windows:`%USERPROFILE%\.config\opencode\`)的 `plugins` 里引用本目录:
+
+```jsonc
+{
+  "plugins": ["D:/Repo/Temp/opencode-plugin/provider-model-update"],
+}
+```
+
+(或将路径改成本机实际位置;项目级配置的 `plugins` 里写相对路径如 `"../provider-model-update"` 实测也可。)改完后重启 opencode 后台服务或新开会话生效。
+
+**目录插件入口契约**(v2.0.14 实测):OpenCode 对目录型插件只解析 `<目录>/server.*` 与 `<目录>/index.*`,**完全无视 `package.json#main`**;两者都找不到就静默跳过、零日志。所以仓库根必须有 `index.ts`(re-export `src/index.ts`),不要删除或挪走。
+
+
+## 用法
+
+### 1. 模板文件 `extends.models.jsonc`
+
+以 id 为键,值是模型参数模板。**V1 catalog 风格与 V2 原生风格都接受**(内部归一化为 V2):
+
+```jsonc
+{
+  // V1 风格
+  "qwen3.8-flash": {
+    "limit": { "context": 262144, "output": 64000 },
+    "modalities": { "input": ["text", "image"], "output": ["text"] },
+    "tool_call": true,
+    "variants": {
+      "low": { "reasoningEffort": "low" },
+      "xhigh": { "reasoningEffort": "xhigh" },
+    },
+  },
+  // V2 风格 + 链式继承(ADR-0004)
+  "qwen-common": { "settings": { "setCacheKey": true } },
+  "qwen-flagship": {
+    "extends": "qwen-common",
+    "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] },
+    "limit": { "context": 262144 },
+  },
+}
+```
+
+### 2. 在 opencode 配置里引用(锚点)
+
+`extends` 写在模型级 `settings`(V1 写法为 `options`)里(ADR-0001):
+
+```jsonc
+// V2 原生写法
+{
+  "providers": {
+    "aihub": {
+      "package": "aisdk:@ai-sdk/openai",
+      "models": {
+        "gpt-6-sol": { "settings": { "extends": "qwen3.8-flash" } },
+      },
+    },
+  },
+}
+```
+
+```jsonc
+// V1 写法
+{
+  "provider": {
+    "aihub": {
+      "npm": "@ai-sdk/openai",
+      "models": {
+        "gpt-6-sol": { "options": { "extends": "qwen3.8-flash" } },
+      },
+    },
+  },
+}
+```
+
+## 语义速查
+
+| 主题 | 规则 |
+|---|---|
+| 查找链(低→高) | 全局 `~/.config/opencode/extends.models.json(c)` → 从文件系统根到启动目录逐级 `extends.models.json(c)` → 各级 `.opencode/` 下的同名文件 |
+| 同 id 合并 | 就近文件的条目深合并覆盖远端;用户配置最终覆盖模板 |
+| 合并规则 | `settings`/`body`/`compatibility` 递归合并;`headers` 按 key(大小写不敏感)覆盖;`limit`/`capabilities` 逐子键;`variants` 按 id 对齐;数组与标量整值替换 |
+| 删除模板键 | 用户侧写显式 `null`(ADR-0003)。⚠️ 只可靠用于 **V2 `settings`**:V1 `options` 里写 `null` 会让 OpenCode 把整个 provider 判为非法直接跳过(官方解码行为) |
+| 凭据 | 模板可用 `{env:VAR}` / `{env:VAR:-默认值}`;变量未设且无默认 → 警告并删除该键(ADR-0005) |
+| 链式 extends | 模板条目顶层 `extends`;每跳按查找链就近解析;成环/断链 → 警告并停止展开(ADR-0004) |
+| `extends` 键显示 | 插件会从生效配置剥掉 `extends`,但 `/api/model`、TUI `/models` 详情仍可能显示它——OpenCode 在插件 transform 之后还会把模型原始 config 合并回展示层。生效参数不受影响;残留的 `extends` 对 SDK 是未知选项,会被忽略 |
+| 注入机制 | 主注入点 `ctx.model.transform`(config 注入的 provider 在 `provider.transform` 快照中不可见,v2.0.14 实测);`provider.transform` 仅兜底内置目录模型;草稿编辑必须**整体重赋值**嵌套对象(原地 mutate 不被追踪) |
+| 失败面 | 全部为**警告 + 跳过**,不阻塞启动;日志前缀 `[opencode-models-extends]`,见 `~/.local/share/opencode/log/opencode.log` |
+| 热生效 | 修改链上**已知**模板/配置文件约 2 秒内自动生效;在更近的目录**新建**模板文件需重启 |
+| 无效字段 | `attachment`、布尔 `temperature`、`release_date` 等在 V2 无对应 → 警告并忽略(对齐官方 V1→V2 迁移语义) |
+
+## Non-goals
+
+- **provider 级 extends**(共享 `package`/`settings`/`baseURL`)不做 —— ADR-0006。
+- 模板**绝不凭空注册模型**:只有 opencode.json 里写了 `extends` 的模型配置项(锚点)会触发注入。
+- 内置 provider(如 `anthropic`)的模型配置项**可以**作锚点,顺带支持。
+
+## 开发
+
+```sh
+npm install
+npm test
+```
+
+纯逻辑(合并/归一化/数据集/草稿写入)在 `src/{merge,normalize,dataset,jsonc,apply}.ts`,插件接线在 `src/index.ts`(根 `index.ts` 是加载契约要求的入口 re-export)。测试:`test/*.test.ts`,共 31 项。

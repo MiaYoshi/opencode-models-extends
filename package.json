@@ -1,0 +1,21 @@
+{
+  "name": "opencode-models-extends",
+  "version": "0.1.0",
+  "description": "OpenCode plugin: reuse model config across providers via extends references to template files",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.0.14",
+    "jsonc-parser": "^3.3.1"
+  }
+}
