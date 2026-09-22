@@ -32,6 +32,10 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
     "limit": { "context": 262144, "output": 64000 },
     "modalities": { "input": ["text", "image"], "output": ["text"] },
     "tool_call": true,
+    "variants": {
+      "low": { "reasoningEffort": "low" },
+      "xhigh": { "reasoningEffort": "xhigh" },
+    },
   },
   // V2 风格 + 链式继承(ADR-0004)
   "qwen-common": { "settings": { "setCacheKey": true } },
@@ -43,20 +47,24 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
 }
 ```
 
-> ⚠️ **variants 不要放进模板**:OpenCode v2 在插件 transform 之后按「配置条目原始 variants ?? 包与模型名自动装配」重建 variants,插件注入的一律被忽略(ADR-0007)。把 variants 留在各模型配置条目里;若模板里写了 variants,插件会警告并提示。
+> 💡 **模板里的 `variants` 需要配置条目加一个空标记才会生效**:OpenCode v2 在插件 transform 之后按「配置条目声明的 variants 做 merge ?? 包与模型名自动装配整覆盖」重建 variants。条目写 `"variants": {}`(V1)或 `"variants": []`(V2)即可切到 merge 路径、启用模板值并压掉自动装配(ADR-0007)。没加标记且模板含 variants 时插件会警告。
 
 ### 2. 在 opencode 配置里引用(锚点)
 
 `extends` 写在模型级 `settings`(V1 写法为 `options`)里(ADR-0001):
 
 ```jsonc
-// V2 原生写法
+// V2 原生写法。模板若含 variants,条目必须声明 variants:写 [] 启用模板值(见 ADR-0007);
+// 也可直接写真实 variants,会按"用户 > 模板"叠加。不含 variants 的模板可省略这个键。
 {
   "providers": {
     "aihub": {
       "package": "aisdk:@ai-sdk/openai",
       "models": {
-        "gpt-6-sol": { "settings": { "extends": "qwen3.8-flash" } },
+        "gpt-6-sol": {
+          "settings": { "extends": "qwen3.8-flash" },
+          "variants": [],
+        },
       },
     },
   },
@@ -64,13 +72,16 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
 ```
 
 ```jsonc
-// V1 写法
+// V1 写法(npm 为 V1 provider 字段;模型级 options.extends 作锚点)
 {
   "provider": {
     "aihub": {
       "npm": "@ai-sdk/openai",
       "models": {
-        "gpt-6-sol": { "options": { "extends": "qwen3.8-flash" } },
+        "gpt-6-sol": {
+          "options": { "extends": "qwen3.8-flash" },
+          "variants": {}, // 模板 variants 生效所需:V1 用 {} 而非 [](V2)
+        },
       },
     },
   },
@@ -84,7 +95,7 @@ OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重
 | 查找链(低→高) | 全局 `~/.config/opencode/extends.models.json(c)` → 从文件系统根到启动目录逐级 `extends.models.json(c)` → 各级 `.opencode/` 下的同名文件 |
 | 同 id 合并 | 就近文件的条目深合并覆盖远端;用户配置最终覆盖模板 |
 | 合并规则 | `settings`/`body`/`compatibility` 递归合并;`headers` 按 key(大小写不敏感)覆盖;`limit`/`capabilities` 逐子键;数组与标量整值替换 |
-| **`variants` 不生效**(v2.0.14) | 模板里的 `variants` 合并逻辑保留、也会写进 draft,但 OpenCode 在 transform 之后按「配置条目原始 `variants` ?? 按包与模型名自动装配」重建,**插件注入的 variants 被整体丢弃**。→ 请把 `variants` 写在各模型的配置条目里;模板若含 `variants` 会触发一条警告。详见 ADR-0007 |
+| **`variants` 需空标记**(v2.0.14) | OpenCode 在插件 transform 之后重建 variants:条目**声明过** `variants`(含空)→ 按 id merge,模板值存活;条目**没声明** → 按包+模型名自动装配整覆盖,模板值丢失。所以模板若提供 variants,配置条目需加 `"variants": []`(V2)/ `"variants": {}`(V1)空标记。条目声明真实 variants 时按"用户 > 模板"叠加。无标记且模板含 variants → 警告。详见 ADR-0007 |
 | 删除模板键 | 用户侧写显式 `null`(ADR-0003)。⚠️ 只可靠用于 **V2 `settings`**:V1 `options` 里写 `null` 会让 OpenCode 把整个 provider 判为非法直接跳过(官方解码行为) |
 | 凭据 | 模板可用 `{env:VAR}` / `{env:VAR:-默认值}`;变量未设且无默认 → 警告并删除该键(ADR-0005) |
 | 链式 extends | 模板条目顶层 `extends`;每跳按查找链就近解析;成环/断链 → 警告并停止展开(ADR-0004) |

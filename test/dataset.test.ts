@@ -118,7 +118,7 @@ test("链式 extends:子条目覆写父条目", () => {
   }
 })
 
-test("模板提供 variants:警告会被 OpenCode 忽略(v2.0.14 装配),partial 仍写入以前向兼容", () => {
+test("模板提供 variants:条目无标记→警告;带空标记→不警告(装配 merge 路径生效)", () => {
   const { root, cleanup } = fixture({
     "global/extends.models.jsonc": JSON.stringify({
       base: { variants: { high: { reasoningEffort: "high" } } },
@@ -130,6 +130,7 @@ test("模板提供 variants:警告会被 OpenCode 忽略(v2.0.14 装配),partial
         p: {
           models: {
             inherited: { settings: { extends: "child" } },
+            marked: { settings: { extends: "child" }, variants: [] },
             quiet: { settings: { extends: "plain" } },
           },
         },
@@ -138,11 +139,13 @@ test("模板提供 variants:警告会被 OpenCode 忽略(v2.0.14 装配),partial
   })
   try {
     const { dataset, warnings } = run(root)
-    const vWarns = warnings.filter((w) => w.includes("variants 会被 OpenCode 忽略"))
-    assert.equal(vWarns.length, 1) // 仅链上有 variants 的锚点告警
+    const vWarns = warnings.filter((w) => w.includes("自动装配覆盖"))
+    assert.equal(vWarns.length, 1) // 仅「链上有 variants 且条目无标记」的锚点告警
     assert.match(vWarns[0]!, /"inherited"/)
     const inh = dataset.anchors.find((a) => a.modelID === "inherited")!
     assert.deepEqual((inh.partial as { variants?: unknown[] }).variants, [{ id: "high", settings: { reasoningEffort: "high" } }])
+    const marked = dataset.anchors.find((a) => a.modelID === "marked")!
+    assert.deepEqual((marked.partial as { variants?: unknown[] }).variants, [{ id: "high", settings: { reasoningEffort: "high" } }])
   } finally {
     cleanup()
   }

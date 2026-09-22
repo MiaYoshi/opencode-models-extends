@@ -198,11 +198,13 @@ export function buildDataset(locationDir: string, warn: Warn, opts: DatasetOptio
     const label = `provider "${providerID}" model "${modelID}"`
     const userNorm = normalizeModelEntry(raw, label, "anchor", warn)
     const templateResolved = extendsId ? resolveChain(extendsId, templates, [], (m) => warn(`${label}: ${m}`)) : undefined
-    // v2.0.14 实测:OpenCode 对 variants 的最终装配 = 配置条目原始 variants ?? 按包与模型名的自动装配,
-    // 完全忽略 transform 写入的 draft.variants → 模板提供的 variants 不会生效(见 ADR-0007)。
-    // 仍会写入 draft(前向兼容),但必须警告,避免用户误以为已注入。
-    if (Array.isArray(templateResolved?.variants) && templateResolved.variants.length > 0) {
-      warn(`${label}: 模板提供的 variants 会被 OpenCode 忽略(v2.0.14 装配规则),请将 variants 写在模型配置条目里`)
+    // v2.0.14 源码确认(packages/core/src/config/plugin/provider.ts):最终 variants 由内置 config 插件装配,
+    // 且注册在外部插件 transform 之后。配置条目「声明过 variants(含空数组/空对象)」→ 按 id merge 到
+    // 插件写入的 draft 之上(模板 variants 生效);完全没声明 → 按 package+模型名自动装配整字段覆盖
+    // (模板 variants 丢失)。条目加 `"variants": []`(V2)/ `"variants": {}`(V1)空标记即可启用模板值。
+    const hasVariantMarker = raw.variants !== undefined
+    if (Array.isArray(templateResolved?.variants) && templateResolved.variants.length > 0 && !hasVariantMarker) {
+      warn(`${label}: 模板提供的 variants 会被 OpenCode 自动装配覆盖,请给该模型条目加空标记启用:V1 写 "variants": {},V2 写 "variants": []`)
     }
     const merged = templateResolved && userNorm ? mergeModelPartial(templateResolved, userNorm.partial) : (userNorm?.partial ?? {})
     const final = substituteEnv(merged, (m) => warn(`${label}: ${m}`))
