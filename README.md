@@ -131,7 +131,7 @@ npm 目前不允许用 OIDC 发包的**首个版本**,trusted publisher 也必�
 ```sh
 # 前提:npm 账号已开 2FA;npm CLI ≥ 11.15(npm trust 命令要求)
 npm login          # 浏览器网页授权(不要用绕过 2FA 的 Granular Token,npm trust 不接受)
-npm publish --access public   # 首发 0.1.0;本地发带不了 --provenance(provenance 仅支持 GitHub Actions/GitLab 云 runner),从下一版起都有
+npm publish --access public   # 首发 0.0.1;本地发带不了 --provenance(provenance 仅支持 GitHub Actions/GitLab 云 runner),从下一版起都有
 npm trust github --file release.yml --repo MiaYoshi/opencode-models-extends --allow-publish
 npm trust list     # 确认登记成功
 ```
@@ -142,8 +142,8 @@ npm trust list     # 确认登记成功
 
 ### 常规发版
 
-1. 改 `package.json` 的 `version`(如 `0.1.1`)并提交推送;
-2. `git tag v0.1.1; git push origin v0.1.1`;
+1. 改 `package.json` 的 `version`(如 `0.0.2`)并提交推送;
+2. `git tag v0.0.2; git push origin v0.0.2`;
 3. Actions 自动:测试 → 版本一致性校验 → OIDC 换取一次性发布令牌 → `npm publish --provenance`,包页出现 Attestations。
 
 tag 与 `package.json` 版本不一致时 workflow 直接失败拒发。
