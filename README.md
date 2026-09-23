@@ -51,10 +51,10 @@ V2 写法:
 ```jsonc
 {
   "providers": {
-    "aihub": {
+    "custom-provider": {
       "package": "aisdk:@ai-sdk/openai",
       "models": {
-        "gpt-6-sol": {
+        "qwen/qwen3.8-flash": {
           "settings": { "extends": "qwen3.8-flash" },
           "variants": [],
         },
@@ -69,10 +69,10 @@ V1 写法:
 ```jsonc
 {
   "provider": {
-    "aihub": {
+    "custom-provider": {
       "npm": "@ai-sdk/openai",
       "models": {
-        "gpt-6-sol": {
+        "qwen/qwen3.8-flash": {
           "options": { "extends": "qwen3.8-flash" },
           "variants": {},
         },
@@ -82,7 +82,7 @@ V1 写法:
 }
 ```
 
-`gpt-6-sol` 的全部参数即来自模板;你在配置条目里额外写的部分,永远覆盖模板值。
+`qwen/qwen3.8-flash` 的全部参数即来自模板;你在配置条目里额外写的部分,永远覆盖模板值。
 
 > 示例中条目里的 `"variants": []` / `{}` 是**空占位标记**,启用模板 variants 所必需,见下表。
 
