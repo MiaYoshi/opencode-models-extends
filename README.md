@@ -138,6 +138,8 @@ npm trust list     # 确认登记成功
 
 `npm trust github` 是网页 "Add trusted publisher" 表单的 CLI 等价物(匹配条件 = 仓库 + workflow 文件名,与 tag 模式无关;限定 tag 推送是我们 workflow 自己的 `on.push.tags`)。也可以在 npmjs.com 网页上完成同样的登记。
 
+两个易踩的细节:npm **保存配置时不校验**,写错只在发布那刻报 ENEEDAUTH;且 2026-09-03 起新建的 trusted publisher 默认只允许 `npm stage publish`,必须显式允许直接发布——CLI 的 `--allow-publish` 已覆盖,网页表单则要在 "Allowed actions" 里勾上 `npm publish`。
+
 ### 常规发版
 
 1. 改 `package.json` 的 `version`(如 `0.1.1`)并提交推送;
