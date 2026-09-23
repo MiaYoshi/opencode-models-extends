@@ -9,7 +9,7 @@ npm install
 npm test
 ```
 
-- 无构建步骤:以 TypeScript **源码**形态发布(`package.json#files` 只含 `index.ts` 与 `src/`,运行时由 OpenCode 直接 import)。
+- 无构建步骤:以 TypeScript **源码**形态分发(`package.json#files` 只含 `index.ts` 与 `src/`,运行时由 OpenCode 直接 import)。
 - 测试依赖 Node ≥ 24 的原生 TS type-stripping 直接跑 `.ts`(`node --test "test/*.test.ts"`);本机无 bun。
 - 目录职责:
   - 根 `index.ts` —— 入口 re-export。**OpenCode 对目录插件只解析 `<dir>/server.*` / `<dir>/index.*`,完全无视 `package.json#main`,找不到就静默跳过零日志**——此文件不可删除或挪走。
@@ -21,7 +21,7 @@ npm test
   - `src/jsonc.ts` —— JSONC 解析(jsonc-parser)。
 - 测试:`test/*.test.ts`,32 项纯逻辑断言,无运行时 e2e(实机验证方法见下)。
 
-## OpenCode v2.0.14 硬契约(源码+实测坐实,勿再猜测/重复验证)
+## OpenCode v2 硬契约(源码+实测坐实,勿再猜测/重复验证)
 
 1. **目录插件入口**:`<dir>/server.*` 或 `<dir>/index.*`,package.json#main 无效;缺失=静默跳过。
 2. **`ctx.provider.transform` 可见性**:editor 快照只含内置 catalog provider(约 221 个),配置注入的 provider 不在其中;主注入点必须用 `ctx.model.transform`。
@@ -45,16 +45,26 @@ npm test
 
 ## 发布
 
-日常发版(全自动,无任何仓库 secret):
+先分清两件事,别混:
+
+- **日常开发提交 = 不发布**。push / PR 到 `main` 只触发 `ci.yml` 跑测试,npm registry 上不会有任何变化。
+- **发布 = 推送 `v*.*.*` tag**。只有 tag 触发 `release.yml`,才会真正把包发到 **npmjs.com**。
+
+日常发版步骤(全自动,无任何仓库 secret)。新版本号必须高于 registry 当前 `latest`(0.0.2 已发布,下一版取 0.0.3+):
 
 ```sh
-npm version 0.0.2 -m "chore: release 0.0.2"   # 改 package.json + lock,生成 commit 与 tag
-git push origin main && git push origin v0.0.2
-# → .github/workflows/release.yml:测试 → tag 与版本一致性校验(不一致直接拒发)→ npm publish --provenance
+# ① 本地 bump:只改 package.json + lock,生成 commit 与 tag —— 此时还没有任何东西发到 npm
+npm version 0.0.3 -m "chore: release 0.0.3"
+
+# ② 推送:推 main 仅触发测试;推 tag 才触发发布工作流
+git push origin main && git push origin v0.0.3
+
+# ③ release.yml 自动完成真正的发布动作:
+#    测试 → tag 与 package.json 版本一致性校验(不一致直接拒发)
+#    → npm publish 把包发布到 npmjs.com(--provenance 同时生成来源凭证/Attestations)
 ```
 
-- 认证走 npm Trusted Publishing(OIDC),需要 `permissions: id-token: write` 与 GitHub **公共仓库**(私有仓库不生成 provenance)。
-- `ci.yml` 在 push/PR 到 `main` 时跑测试。
+- 发布认证走 npm Trusted Publishing(OIDC),需要 workflow 的 `permissions: id-token: write` 与 GitHub **公共仓库**(私有仓库不生成 provenance)。
 
 一次性引导(**已完成,勿重做**,留档备查):
 
