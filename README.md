@@ -122,18 +122,26 @@ npm test
 
 ## 发布(GitHub Actions)
 
-CI(`.github/workflows/ci.yml`)在 push/PR 到 `main` 时跑测试;发布(`.github/workflows/release.yml`)由 **tag push 触发**,链路为:测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance`(npm Trusted Publishing / OIDC,**无需**在仓库配置 `NPM_TOKEN` secret)。
+CI(`.github/workflows/ci.yml`)在 push/PR 到 `main` 时跑测试;发布(`.github/workflows/release.yml`)由 **tag push 触发**,链路为:测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance`(npm Trusted Publishing / OIDC,常态化后**无需**任何仓库 secret)。
 
-发版步骤:
+### 一次性引导:首发
 
-1. 改 `package.json` 的 `version`(如 `0.1.1`),提交;
-2. 打 tag 并推送:`git tag v0.1.1; git push origin v0.1.1`;
-3. Actions 自动发布,包页会带 provenance(Attestations)标记。
+npm 目前不允许用 OIDC 发包的**首个版本**,trusted publisher 也必须在包已存在之后才能登记(见 npm/cli#8544 与 `npm trust` 文档 "Package must exist")。所以首发要手动两步,之后全部回归纯 tag 流水线:
 
-**一次性前置**(npm 侧,否则首发 401):在 npmjs.com → 你的账号 → Access Tokens 同页的 **Trusted Publishing** 里,为本包(首发时若包还不存在,可在发布前用 "Add trusted publisher" 预配置包名)添加 GitHub 来源:
+```sh
+# 前提:npm 账号已开 2FA;npm CLI ≥ 11.15(npm trust 命令要求)
+npm login          # 浏览器网页授权(不要用绕过 2FA 的 Granular Token,npm trust 不接受)
+npm publish --access public   # 首发 0.1.0;本地发带不了 --provenance(provenance 仅支持 GitHub Actions/GitLab 云 runner),从下一版起都有
+npm trust github --file release.yml --repo MiaYoshi/opencode-models-extends --allow-publish
+npm trust list     # 确认登记成功
+```
 
-- Owner/Repository:`MiaYoshi/opencode-models-extends`
-- Workflow name:`release.yml`(必须与文件名一致)
-- tag pattern:`v*`(匹配 `v*.*.*` 的推送)
+`npm trust github` 是网页 "Add trusted publisher" 表单的 CLI 等价物(匹配条件 = 仓库 + workflow 文件名,与 tag 模式无关;限定 tag 推送是我们 workflow 自己的 `on.push.tags`)。也可以在 npmjs.com 网页上完成同样的登记。
 
-npm CLI 需 ≥ 11.5.1(Node 24 自带的 11.x 满足);tag 与版本不一致时 workflow 会直接失败拒发。
+### 常规发版
+
+1. 改 `package.json` 的 `version`(如 `0.1.1`)并提交推送;
+2. `git tag v0.1.1; git push origin v0.1.1`;
+3. Actions 自动:测试 → 版本一致性校验 → OIDC 换取一次性发布令牌 → `npm publish --provenance`,包页出现 Attestations。
+
+tag 与 `package.json` 版本不一致时 workflow 直接失败拒发。
