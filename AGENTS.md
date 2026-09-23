@@ -75,4 +75,4 @@ git push origin main && git push origin v0.0.3
 ## 其他事实
 
 - npm 包 metadata 的 `maintainers` 字段由 registry 自动写入账号邮箱,无法隐藏。
-- `@opencode/plugin` 钉 2.0.14(与实测运行时一致);升级 OpenCode 版本后上述契约需回归验证(尤其第 4 条)。
+- `@opencode/plugin` 的版本**钉死**为与实测运行时一致(当前取值以 `package.json` 为准);OpenCode 升级后先回归验证上述四条 v2 契约(尤其第 4 条 variants 装配),再同步 bump 钉的版本并发布。
