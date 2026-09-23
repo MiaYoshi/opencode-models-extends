@@ -1,0 +1,76 @@
+name: Release
+
+# 发布流程:推送形如 v1.2.3 的 tag → 跑测试 → 校验 tag 与 package.json 版本一致 → npm 发布。
+# 认证走 npm Trusted Publishing(OIDC),无需在仓库存 NPM_TOKEN;
+# 需先在 npmjs.com 把本仓库 + 本 workflow 文件配置为该包的 Trusted Publisher(见 README 说明)。
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write # 关键:申请 OIDC 令牌,供 npm provenance + trusted publishing 使用
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify tag matches package version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG="${REF_NAME#v}"
+          PKG="$(node -p 'require("./package.json").version')"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag ($REF_NAME) 与 package.json version ($PKG) 不一致,拒绝发布"
+            exit 1
+          fi
+          echo "版本一致:$PKG"
+
+      - name: Dry-run pack
+        run: npm pack --dry-run
+
+      - name: Publish
+        # provenance 生成不可伪造的来源凭证,并把 OIDC 令牌用于 trusted publishing 鉴权。
+        run: npm publish --provenance --access public --tag latest
+
+      - name: Report
+        run: |
+          PKG="$(node -p 'require("./package.json").name')"
+          VER="$(node -p 'require("./package.json").version')"
+          echo "已发布 https://www.npmjs.com/package/${PKG}/v/${VER}"

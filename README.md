@@ -118,4 +118,22 @@ npm install
 npm test
 ```
 
-纯逻辑(合并/归一化/数据集/草稿写入)在 `src/{merge,normalize,dataset,jsonc,apply}.ts`,插件接线在 `src/index.ts`(根 `index.ts` 是加载契约要求的入口 re-export)。测试:`test/*.test.ts`,共 31 项。
+纯逻辑(合并/归一化/数据集/草稿写入)在 `src/{merge,normalize,dataset,jsonc,apply}.ts`,插件接线在 `src/index.ts`(根 `index.ts` 是加载契约要求的入口 re-export)。测试:`test/*.test.ts`,共 32 项。
+
+## 发布(GitHub Actions)
+
+CI(`.github/workflows/ci.yml`)在 push/PR 到 `main` 时跑测试;发布(`.github/workflows/release.yml`)由 **tag push 触发**,链路为:测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance`(npm Trusted Publishing / OIDC,**无需**在仓库配置 `NPM_TOKEN` secret)。
+
+发版步骤:
+
+1. 改 `package.json` 的 `version`(如 `0.1.1`),提交;
+2. 打 tag 并推送:`git tag v0.1.1; git push origin v0.1.1`;
+3. Actions 自动发布,包页会带 provenance(Attestations)标记。
+
+**一次性前置**(npm 侧,否则首发 401):在 npmjs.com → 你的账号 → Access Tokens 同页的 **Trusted Publishing** 里,为本包(首发时若包还不存在,可在发布前用 "Add trusted publisher" 预配置包名)添加 GitHub 来源:
+
+- Owner/Repository:`MiaYoshi/opencode-models-extends`
+- Workflow name:`release.yml`(必须与文件名一致)
+- tag pattern:`v*`(匹配 `v*.*.*` 的推送)
+
+npm CLI 需 ≥ 11.5.1(Node 24 自带的 11.x 满足);tag 与版本不一致时 workflow 会直接失败拒发。

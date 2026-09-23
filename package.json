@@ -4,6 +4,10 @@
   "description": "OpenCode plugin: reuse model config across providers via extends references to template files",
   "type": "module",
   "main": "index.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MiaYoshi/opencode-models-extends.git"
+  },
   "exports": {
     ".": "./index.ts"
   },

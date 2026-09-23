@@ -1,0 +1,30 @@
+name: CI
+
+# 常规验证:向 main 推送或开 PR 时跑单元测试(不发布)。
+# 发布只由 v*.*.* tag 触发,见 release.yml。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
