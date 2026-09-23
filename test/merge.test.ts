@@ -27,7 +27,7 @@ test("mergeVariants:按 id 对齐,新增追加,内部深合并", () => {
     { id: "deep", body: { store: false } },
   ]
   const merged = mergeVariants(base, override)!
-  assert.deepEqual(merged.map((v) => v.id), ["low", "high", "deep"])
+  assert.deepEqual(merged.map((v) => (v as { id: string }).id), ["low", "high", "deep"])
   assert.deepEqual((merged[0] as { settings: unknown }).settings, { reasoningEffort: "fast", extra: 1 })
 })
 

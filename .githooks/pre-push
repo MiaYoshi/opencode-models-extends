@@ -1,0 +1,7 @@
+#!/bin/sh
+# 推送门禁:TS 校验 + 构建校验未过,拒绝 push。
+# 每个 clone 需一次性启用:git config core.hooksPath .githooks
+npm run verify || {
+  echo "[pre-push] npm run verify 未通过(typecheck/test/smoke/pack),已阻止 push" >&2
+  exit 1
+}

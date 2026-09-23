@@ -1,0 +1,9 @@
+# shell 钩子必须保持 LF,否则非 Windows 机器上 git 执行 pre-push 会因 \r 报错
+.githooks/* text eol=lf
+*.sh text eol=lf
+# 锁定文件与源码统一 LF 入库(检出策略交给各人 core.autocrlf)
+package-lock.json text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.md text

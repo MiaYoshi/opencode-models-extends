@@ -1,0 +1,22 @@
+{
+  // 纯校验用:本包以 TypeScript 源码形态分发,无构建产物,故 noEmit。
+  // 目标与限制对齐 Node 原生 type-stripping 运行时(OpenCode 直接 import .ts):
+  //   - erasableSyntaxOnly:禁止 enum/namespace/参数属性等无法被剥离的语法
+  //   - verbatimModuleSyntax:类型导入必须显式 type,剥离后不留运行时残留
+  //   - allowImportingTsExtensions:仓库内相对导入一律带 .ts 后缀
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["index.ts", "src/**/*.ts", "test/**/*.ts"]
+}

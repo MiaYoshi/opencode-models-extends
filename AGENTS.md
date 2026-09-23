@@ -6,11 +6,12 @@
 
 ```sh
 npm install
-npm test
+npm run verify
 ```
 
-- 无构建步骤:以 TypeScript **源码**形态分发(`package.json#files` 只含 `index.ts` 与 `src/`,运行时由 OpenCode 直接 import)。
-- 测试依赖 Node ≥ 24 的原生 TS type-stripping 直接跑 `.ts`(`node --test "test/*.test.ts"`);本机无 bun。
+- **代码门禁:任何改动必须 `npm run verify` 全绿才能 commit/push**。它串联四步:`typecheck`(`tsc --noEmit` 严格模式 TS 类型校验)+ `test` + `smoke`(Node 直接 `import('./index.ts')` 入口冒烟)+ `npm pack --dry-run`(打包内容自检)。CI 与 release 工作流强制同一命令,不绿不发。
+- 无构建步骤:以 TypeScript **源码**形态分发(`package.json#files` 只含 `index.ts` 与 `src/`,运行时由 OpenCode 直接 import)。因此 `tsconfig.json` 开了 **`erasableSyntaxOnly`**——`enum`/`namespace`/参数属性等"tsc 编译能过、但 type-stripping 运行时会炸"的语法在 typecheck 阶段即被拒绝;另配 `verbatimModuleSyntax`(类型导入必须显式 `type`)与 `allowImportingTsExtensions`(相对导入一律带 `.ts`)。tsconfig 里有注释,勿随意放宽。
+- 测试与类型链依赖 Node ≥ 24 的原生 TS type-stripping 直接跑 `.ts`(`node --test "test/*.test.ts"`);本机无 bun。
 - 目录职责:
   - 根 `index.ts` —— 入口 re-export。**OpenCode 对目录插件只解析 `<dir>/server.*` / `<dir>/index.*`,完全无视 `package.json#main`,找不到就静默跳过零日志**——此文件不可删除或挪走。
   - `src/index.ts` —— 插件接线:`ctx.model.transform` 主注入、`provider.transform` 兜底内置目录模型、已知文件 mtime+size 轮询触发 `model.reload()/provider.reload()`。
@@ -30,6 +31,7 @@ npm test
 
 ## 改动原则
 
+- **未过 `npm run verify`(TS 校验 + 构建校验)的代码不得进入 git 历史**。本地强制:`.githooks/pre-push`(每个 clone 一次性启用 `git config core.hooksPath .githooks`);远端强制:CI 与 release 工作流。绕过 hook push 属违规操作。
 - 一切错误路径 = **警告 + 跳过**,绝不抛出异常阻塞 opencode 启动;日志前缀 `[opencode-models-extends]`。
 - 模板绝不凭空注册模型;锚点 = 配置里写了 `extends` 的模型条目。
 - 用户显式 `null` = 删除键;仅限 V2 `settings`(V1 `options` 写 null 会让官方解码把 provider 判 malformed)。

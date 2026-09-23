@@ -32,8 +32,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Unit tests
-        run: npm test
+      - name: Verify (typecheck + tests + smoke + pack)
+        run: npm run verify
 
   publish:
     name: Publish to npm

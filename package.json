@@ -16,10 +16,17 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"test/*.test.ts\""
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "node --input-type=module -e \"await import('./index.ts')\"",
+    "verify": "npm run typecheck && npm run test && npm run smoke && npm pack --dry-run"
   },
   "dependencies": {
     "@opencode/plugin": "2.0.14",
     "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
   }
 }
