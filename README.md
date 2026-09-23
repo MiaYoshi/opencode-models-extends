@@ -2,19 +2,25 @@
 
 OpenCode 插件:用 `extends` 引用模板文件,消除多个 provider 之间重复的模型参数配置。
 
-设计决策见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)(0001–0006)。
+设计决策见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)(0001–0007)。
 
 ## 安装
 
-在**全局**配置 `~/.config/opencode/opencode.jsonc`(Windows:`%USERPROFILE%\.config\opencode\`)的 `plugins` 里引用本目录:
+推荐直接用 npm 包 `opencode-models-extends`:在**全局**配置 `~/.config/opencode/opencode.jsonc`(Windows:`%USERPROFILE%\.config\opencode\`)的 `plugins` 里写包名,改完后重启 opencode 后台服务或新开会话生效:
 
 ```jsonc
 {
-  "plugins": ["D:/Repo/Temp/opencode-plugin/provider-model-update"],
+  "plugins": ["opencode-models-extends"],
 }
 ```
 
-(或将路径改成本机实际位置;项目级配置的 `plugins` 里写相对路径如 `"../provider-model-update"` 实测也可。)改完后重启 opencode 后台服务或新开会话生效。
+本地开发时也可以直接指向仓库目录(项目级配置写相对路径同样有效):
+
+```jsonc
+{
+  "plugins": ["D:/path/to/opencode-models-extends"],
+}
+```
 
 **目录插件入口契约**(v2.0.14 实测):OpenCode 对目录型插件只解析 `<目录>/server.*` 与 `<目录>/index.*`,**完全无视 `package.json#main`**;两者都找不到就静默跳过、零日志。所以仓库根必须有 `index.ts`(re-export `src/index.ts`),不要删除或挪走。
 
@@ -122,7 +128,7 @@ npm test
 
 ## 发布(GitHub Actions)
 
-CI(`.github/workflows/ci.yml`)在 push/PR 到 `main` 时跑测试;发布(`.github/workflows/release.yml`)由 **tag push 触发**,链路为:测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance`(npm Trusted Publishing / OIDC,常态化后**无需**任何仓库 secret)。
+CI(`.github/workflows/ci.yml`)在 push/PR 到 `main` 时跑测试;发布(`.github/workflows/release.yml`)由 **tag push 触发**,链路为:测试 → 校验 tag 与 `package.json` 版本一致 → `npm publish --provenance`(npm Trusted Publishing / OIDC,常态化后**无需**任何仓库 secret)。发布链路需**公共 GitHub 仓库**(私有仓库的 Actions run 无法公开验证,provenance 不生成)。
 
 ### 一次性引导:首发
 
