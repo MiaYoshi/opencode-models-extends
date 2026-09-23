@@ -1,6 +1,6 @@
 {
   "name": "opencode-models-extends",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "OpenCode plugin: reuse model config across providers via extends references to template files",
   "type": "module",
   "main": "index.ts",
