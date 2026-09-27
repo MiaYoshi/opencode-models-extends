@@ -265,3 +265,33 @@ test(".opencode 层优先于 direct 层(同目录)与 OpenCode 配置发现一�
     cleanup()
   }
 })
+
+test("variant 速记跨链:父模板速记 → 子模板显式覆盖同 id(ADR-0008)", () => {
+  const { root, cleanup } = fixture({
+    "global/extends.models.jsonc": JSON.stringify({
+      base: { reasoningEffortList: ["low", "high"] },
+      child: {
+        extends: "base",
+        variants: { low: { reasoningEffort: "lowest" }, turbo: { reasoningEffort: "max" } },
+      },
+    }),
+    "project/opencode.jsonc": JSON.stringify({
+      provider: {
+        custom: {
+          npm: "@ai-sdk/openai-compatible",
+          models: { m: { variants: {}, options: { extends: "child" } } },
+        },
+      },
+    }),
+  })
+  try {
+    const { dataset, warnings } = run(root)
+    const list = dataset.anchors[0]!.partial.variants as Array<{ id: string; settings: Record<string, unknown> }>
+    assert.deepEqual(list.map((v) => v.id), ["low", "high", "turbo"]) // 速记序保持,显式独有 id 追加
+    assert.equal(list[0]!.settings.reasoningEffort, "lowest") // 子级显式深合并压过父级速记
+    assert.equal(list[1]!.settings.reasoningEffort, "high") // 未被覆盖的速记项原样继承
+    assert.deepEqual(warnings, [])
+  } finally {
+    cleanup()
+  }
+})

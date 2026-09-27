@@ -1,6 +1,6 @@
 # AGENTS.md
 
-面向 **贡献者与 coding agent** 的开发/维护手册。用户文档见 [`README.md`](./README.md);设计术语与决策见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)(0001–0007)。
+面向 **贡献者与 coding agent** 的开发/维护手册。用户文档见 [`README.md`](./README.md);设计术语与决策见 [`CONTEXT.md`](./CONTEXT.md) 与 [`docs/adr/`](./docs/adr/)(0001–0008)。
 
 ## 本地开发
 

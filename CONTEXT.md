@@ -28,6 +28,10 @@ _Avoid_: 本地配置
 用户配置覆盖到模板条目上得到最终模型配置的过程:对象逐层叠加,数组与标量整值替换,variants 按 id 对齐(v2.0.14 下模板 variants 需配置条目空标记 `variants: []`/`{}` 配合才生效,见 ADR-0007);用户侧显式 `null` 表示删除该键。
 _Avoid_: 叠加、fallback
 
+**variant 速记**:
+仅存在于模板条目内的简写:`reasoningEffortList`(字符串数组)在归一化时展开为 `id = 值 = reasoningEffort` 的 variants,此后就是普通 variants。同条目内与显式 `variants` 按 id 深合并(显式字段优先),顺序为速记项按数组序在前、显式独有 id 追加在后;重复项静默去重保留首次,非法项警告+跳过。跨条目照常遵循 extends 继承链规则。轴仅 reasoningEffort 一条,其余轴明确暂不支持。
+_Avoid_: 变体展开、简写列表、preset variants
+
 **变量替换**:
 模板文件中 `{env:VAR}` 占位符由插件按进程环境变量替换;变量未设时警告并删除所在键。
 _Avoid_: 插值、占位符解析

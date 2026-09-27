@@ -1,7 +1,7 @@
-// 模型配置条目归一化:V1 catalog 风格与 V2 原生形态 → V2 partial(ADR-0002)
+// 模型配置条目归一化:V1 catalog 风格与 V2 原生形态 → V2 partial(ADR-0002),含 variant 速记展开(ADR-0008)
 // 校验失败的字段:警告并丢弃该字段,条目其余保留(失败面策略 A)。
 
-import { isPlainObject, type Dict } from "./merge.ts"
+import { isPlainObject, mergeVariants, type Dict } from "./merge.ts"
 
 export type Warn = (msg: string) => void
 
@@ -133,24 +133,52 @@ function normalizeVariantValue(id: string, value: unknown, warn: Warn): Dict | u
   return { id, settings: { ...value } }
 }
 
-function buildVariants(raw: Dict, out: Dict, warn: Warn): void {
-  if (raw.variants === undefined) return
-  const list: Dict[] = []
-  if (Array.isArray(raw.variants)) {
-    for (const item of raw.variants) {
-      if (isPlainObject(item) && typeof item.id === "string") {
-        const n = normalizeVariantValue(item.id, { ...item }, warn)
-        if (n) list.push(n)
-      } else warn("variants: 数组项缺少字符串 id,已忽略")
-    }
-  } else if (isPlainObject(raw.variants)) {
-    for (const [id, value] of Object.entries(raw.variants)) {
-      const n = normalizeVariantValue(id, value, warn)
-      if (n) list.push(n)
-    }
-  } else {
-    warn("variants: 期望对象或数组,已忽略")
+/** variant 速记展开(ADR-0008):字符串数组 → [{id, settings:{reasoningEffort:id}}]。重复静默去重保留首次;非法元素警告+跳过。 */
+function expandReasoningEffortList(v: unknown, warn: Warn): Dict[] {
+  if (!Array.isArray(v)) {
+    warn("reasoningEffortList: 期望字符串数组,已忽略")
+    return []
   }
+  const out: Dict[] = []
+  const seen = new Set<string>()
+  for (const item of v) {
+    if (typeof item !== "string" || item.length === 0) {
+      warn(`reasoningEffortList: 元素 ${JSON.stringify(item)} 期望非空字符串,已跳过`)
+      continue
+    }
+    if (seen.has(item)) continue // 重复项:语义等价,静默保留首次
+    seen.add(item)
+    out.push({ id: item, settings: { reasoningEffort: item } })
+  }
+  return out
+}
+
+function buildVariants(raw: Dict, out: Dict, warn: Warn, allowSugar: boolean): void {
+  let sugar: Dict[] = []
+  if (raw.reasoningEffortList !== undefined) {
+    if (!allowSugar) warn("reasoningEffortList: 仅模板条目支持,已忽略")
+    else sugar = expandReasoningEffortList(raw.reasoningEffortList, warn)
+  }
+  const explicit: Dict[] = []
+  if (raw.variants !== undefined) {
+    if (Array.isArray(raw.variants)) {
+      for (const item of raw.variants) {
+        if (isPlainObject(item) && typeof item.id === "string") {
+          const n = normalizeVariantValue(item.id, { ...item }, warn)
+          if (n) explicit.push(n)
+        } else warn("variants: 数组项缺少字符串 id,已忽略")
+      }
+    } else if (isPlainObject(raw.variants)) {
+      for (const [id, value] of Object.entries(raw.variants)) {
+        const n = normalizeVariantValue(id, value, warn)
+        if (n) explicit.push(n)
+      }
+    } else {
+      warn("variants: 期望对象或数组,已忽略")
+    }
+  }
+  // 速记为 base、显式为 override:同 id 深合并显式赢,速记在前、显式独有 id 追加(ADR-0008)
+  const list = sugar.length > 0 ? (mergeVariants(sugar, explicit) as Dict[]) : explicit
   if (list.length > 0) out.variants = list
 }
 
@@ -182,6 +210,7 @@ const CONSUMED = new Set<string>([
   "limit",
   "cost",
   "variants",
+  "reasoningEffortList",
   "compatibility",
   "disabled",
   "status",
@@ -231,7 +260,7 @@ export function normalizeModelEntry(raw: unknown, label: string, mode: "anchor" 
   buildCapabilities(raw, out, warn)
   buildLimit(raw, out, warn)
   buildCost(raw, out, warn)
-  buildVariants(raw, out, warn)
+  buildVariants(raw, out, warn, mode === "template")
   buildCompatibility(raw, out, warn)
 
   if (raw.disabled !== undefined) {

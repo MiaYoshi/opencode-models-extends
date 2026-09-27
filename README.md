@@ -86,6 +86,24 @@ V1 写法:
 
 > 示例中条目里的 `"variants": []` / `{}` 是**空占位标记**,启用模板 variants 所必需,见下表。
 
+## variant 速记(可选简写)
+
+reasoning 模型的 variants 要写"每个档位 id 和值各一遍"。模板条目里可以改用速记,一个字符串数组搞定:
+
+```jsonc
+"qwen3.8-flash": {
+  "limit": { "context": 262144, "output": 64000 },
+  "reasoningEffortList": ["low", "medium", "xhigh"], // 展开为 {low:{reasoningEffort:"low"}, ...}
+  "variants": {
+    "xhigh": { "cache": true }, // 同 id 深合并:展开值保留,这里只补/覆盖字段
+    "turbo": { "reasoningEffort": "max" }, // 显式独有档位追加在速记之后
+  },
+}
+```
+
+- 顺序 = 速记项按数组序在前,`variants` 独有 id 追加在后;重复值静默去重。
+- **只能写在模板条目里**(锚点不支持);其余合并/继承/空标记规则与普通 variants 完全一致,见 [ADR-0008](./docs/adr/0008-variant-shorthand-reasoning-effort-list.md)。
+
 ## 规则速查
 
 | 主题 | 规则 |
@@ -96,6 +114,7 @@ V1 写法:
 | 删除模板键 | 配置条目里写显式 `null`。⚠️ 只可靠用于 V2 `settings`:V1 `options` 里写 `null` 会让 OpenCode 把整个 provider 判为非法直接跳过(官方行为,非本插件限制) |
 | 凭据占位 | 模板值支持 `{env:VAR}` 与 `{env:VAR:-默认值}`;变量未设且无默认 → 警告并删除该键 |
 | 链式 extends | 模板条目顶层 `extends` 引用另一模板;成环/断链 → 警告并停止展开 |
+| variant 速记 | 模板条目可写 `"reasoningEffortList": ["low","high"]` 展开成 `id=值` 的 variants;与同条目 `variants` 按 id 深合并(显式赢、速记在前);仅模板支持,详见 [ADR-0008](./docs/adr/0008-variant-shorthand-reasoning-effort-list.md) |
 | 热生效 | 修改链上已有模板/配置文件约 2 秒内自动生效;在更近的目录**新建**模板文件需重启 |
 | `extends` 显示残留 | 注入完成后插件会剥掉 `extends`,但 `/api/model`、TUI `/models` 详情仍可能显示它(OpenCode 展示层行为);实际请求参数不受影响 |
 | 失败面 | 一切问题均为**警告 + 跳过**,绝不阻塞启动;日志前缀 `[opencode-models-extends]`,位置在 OpenCode 日志文件 |
@@ -109,6 +128,6 @@ V1 写法:
 
 ## 更多
 
-- 设计决策与术语:[CONTEXT.md](./CONTEXT.md)、[docs/adr/](./docs/adr/)(0001–0007)
+- 设计决策与术语:[CONTEXT.md](./CONTEXT.md)、[docs/adr/](./docs/adr/)(0001–0008)
 - 本地开发与 npm 发布流程(仓库维护者向):[AGENTS.md](./AGENTS.md)
 - 包页:<https://www.npmjs.com/package/opencode-models-extends>

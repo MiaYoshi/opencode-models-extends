@@ -100,3 +100,70 @@ test("未知字段与顶层 extends(锚点模式)会被警告", () => {
   assert.match(warnings.join("\n"), /foo/)
   // 锚点模式顶层 extends 不消费(只认 settings/options 内),但也不应崩
 })
+
+test("variant 速记:字符串数组展开为 id=值 的 variants,键不泄漏", () => {
+  const { warnings, warn } = collect()
+  const norm = normalizeModelEntry({ reasoningEffortList: ["low", "medium"] }, "t", "template", warn)!
+  assert.deepEqual(norm.partial.variants, [
+    { id: "low", settings: { reasoningEffort: "low" } },
+    { id: "medium", settings: { reasoningEffort: "medium" } },
+  ])
+  assert.equal("reasoningEffortList" in norm.partial, false)
+  assert.deepEqual(warnings, [])
+})
+
+test("速记与显式(V1 对象)同 id 深合并:显式字段赢、速记字段不丢", () => {
+  const { warn } = collect()
+  const a = normalizeModelEntry(
+    { reasoningEffortList: ["low"], variants: { low: { reasoningEffort: "lowest", cache: true } } },
+    "t",
+    "template",
+    warn,
+  )!
+  assert.deepEqual(a.partial.variants, [{ id: "low", settings: { reasoningEffort: "lowest", cache: true } }])
+  const b = normalizeModelEntry(
+    { reasoningEffortList: ["low"], variants: { low: { cache: true } } },
+    "t",
+    "template",
+    warn,
+  )!
+  assert.deepEqual(b.partial.variants, [{ id: "low", settings: { reasoningEffort: "low", cache: true } }])
+})
+
+test("速记顺序:速记按数组序在前,显式独有 id 追加(V2 数组形态同理)", () => {
+  const { warn } = collect()
+  const norm = normalizeModelEntry(
+    {
+      reasoningEffortList: ["low", "high"],
+      variants: [{ id: "xhigh", settings: { reasoningEffort: "xhigh" } }, { id: "low", settings: { cache: true } }],
+    },
+    "t",
+    "template",
+    warn,
+  )!
+  const list = norm.partial.variants as Array<Record<string, unknown>>
+  assert.deepEqual(list.map((v) => v.id), ["low", "high", "xhigh"])
+  assert.deepEqual(list[0], { id: "low", settings: { reasoningEffort: "low", cache: true } })
+})
+
+test("速记脏输入:非法元素警告+跳过、重复静默去重、[] 与非数组", () => {
+  const { warnings, warn } = collect()
+  const a = normalizeModelEntry({ reasoningEffortList: ["low", 5, "", "low", {}, "low"] }, "t", "template", warn)!
+  assert.deepEqual(a.partial.variants, [{ id: "low", settings: { reasoningEffort: "low" } }])
+  assert.equal(warnings.length, 3) // 5 / "" / {} 各一条;两个重复 "low" 静默
+  const b = normalizeModelEntry({ reasoningEffortList: [] }, "t", "template", warn)!
+  assert.equal("variants" in b.partial, false)
+  const { warnings: w2, warn: warn2 } = collect()
+  const c = normalizeModelEntry({ reasoningEffortList: "low" }, "t", "template", warn2)!
+  assert.equal("variants" in c.partial, false)
+  assert.equal(w2.length, 1)
+  assert.match(w2.join("\n"), /reasoningEffortList: 期望字符串数组/)
+})
+
+test("锚点不支持速记:警告+忽略,不产生 variants", () => {
+  const { warnings, warn } = collect()
+  const norm = normalizeModelEntry({ reasoningEffortList: ["low"], settings: { extends: "x" } }, "a", "anchor", warn)!
+  assert.equal("variants" in norm.partial, false)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings.join("\n"), /仅模板条目支持/)
+})
